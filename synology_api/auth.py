@@ -231,7 +231,6 @@ class Authentication:
             response = requests.get(url, req_param, verify=self._verify, headers={"X-SYNO-TOKEN":self._syno_token})
         elif method == 'post':
             response = requests.post(url, req_param, verify=self._verify, headers={"X-SYNO-TOKEN":self._syno_token})
-
         if response_json is True:
             return response.json()
         else:

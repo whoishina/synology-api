@@ -144,3 +144,66 @@ class AdminConsole(base_api.BaseApi):
                      'pause_duration': time_pause}
 
         return self.request_data(api_name, api_path, req_param)
+
+class DriveShareSync(base_api.BaseApi):
+    def active_sync_connections(self) -> dict[str, object] | str:
+        """
+        Get the list of active sync connections
+        """
+        api_name = 'SYNO.SynologyDriveShareSync.Connection'
+        info = self.gen_list[api_name]
+        api_path = info['path']
+        req_param = {'version': info['maxVersion'], 'method': 'list'}
+        return self.request_data(api_name, api_path, req_param)
+
+    def get_session_config(self, session_id: str):
+        api_name = 'SYNO.SynologyDriveShareSync.Session'
+        info = self.gen_list[api_name]
+        api_path = info['path']
+        req_param = {'version': info['maxVersion'], 'method': 'get', 'sess_id': session_id}
+        return self.request_data(api_name, api_path, req_param)
+
+    def update_filter_paths(self, session_id: int, paths: list[str], mode: str = 'add') -> dict[str, object] | str:
+        """
+        Update the filter paths for a given session.
+        :param session_id: The session ID
+        :param paths: The paths to add or remove from the filter
+        :param mode: The mode to use (add or remove)
+        :return: The response from the API
+        """
+        api_name = 'SYNO.SynologyDriveShareSync.Session'
+        filter = self.get_session_config(session_id)['data']
+        if filter is None:
+            return 'Session not found'
+
+        # update filter paths
+        if mode == 'add':
+            filter['filtered_paths'] = filter['filtered_paths'] + paths
+        elif mode == 'remove':
+            filter['filtered_paths'] = [x for x in filter['filtered_paths'] if x not in paths]
+        else:
+            return 'Invalid mode or path not found in filtered paths'
+
+        # unique paths
+        filter['filtered_paths'] = list(set(filter['filtered_paths']))
+        info = self.gen_list[api_name]
+        update_filter_path_param = {
+            'version': info['maxVersion'],
+            'method': 'set',
+            'api': 'SYNO.SynologyDriveShareSync.Session',
+            'sess_list': [
+                {
+                    'sess_id': session_id,
+                    'filtered_max_upload_size': filter['filtered_max_upload_size'],
+                    'filtered_extensions': filter['filtered_extensions'],
+                    'filtered_names': filter['filtered_names'],
+                    'user_defined_extensions': filter['user_defined_extensions'],
+                    'user_defined_names': filter['user_defined_names'],
+                    'filtered_paths': filter['filtered_paths'],
+                    'enable_file_filter': True
+                    }
+                ]
+            }
+        # return req_param
+        compound_data = [update_filter_path_param]
+        return self.batch_request(compound_data, method='post')
